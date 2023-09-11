@@ -6,17 +6,11 @@
 
 #include "mymalloc.h"
 
-typedef char STUB[16]; // intel specified, aligned to 16 bytes.
-
-union block
+struct block
 {
-    STUB stub;
-    struct
-    {
-        union block *next;
-        size_t size;
-        int is_free;
-    } s;
+    struct block *next;
+    size_t size;
+    int is_free;
 };
 
 block_t *head = NULL, *tail = NULL;
@@ -28,11 +22,11 @@ block_t *get_free_block(size_t size)
     block_t *curr = head;
     while (curr)
     {
-        if (curr->s.is_free && curr->s.size >= size)
+        if (curr->is_free && curr->size >= size)
         {
             return curr;
         }
-        curr = curr->s.next;
+        curr = curr->next;
     }
     return NULL;
 }
@@ -46,12 +40,12 @@ void myfree(void *block)
     block_t *header = (block_t *)block - 1;
     if (tail == header)
     {
-        size_t free_size = 0 - header->s.size - sizeof(block_t);
+        size_t free_size = header->size - sizeof(block_t);
         munmap(header, free_size);
         pthread_mutex_unlock(&global_lock);
         return;
     }
-    header->s.is_free = 1;
+    header->is_free = 1;
     pthread_mutex_unlock(&global_lock);
     return;
 }
@@ -68,15 +62,14 @@ void *mymalloc(size_t size)
     // if free block found.
     if (header)
     {
-        header->s.is_free = 0;
+        header->is_free = 0;
         pthread_mutex_unlock(&global_lock);
-        return (void *)(header + 1); // point to the block (not header).
+        return (void *)(++header); // point to allocated memory (hide header).
     }
 
     size_t total_size = sizeof(block_t) + size; // header plus block, need to allocate memory for both.
 
     block_t *new_block;
-
     if ((new_block = mmap(NULL, total_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)) == MAP_FAILED)
     {
         fprintf(stderr, "mmap failed\n");
@@ -84,9 +77,9 @@ void *mymalloc(size_t size)
         return NULL;
     }
 
-    new_block->s.size = size;
-    new_block->s.is_free = 0;
-    new_block->s.next = NULL;
+    new_block->size = size;
+    new_block->is_free = 0;
+    new_block->next = NULL;
 
     if (!head)
     {
@@ -94,12 +87,12 @@ void *mymalloc(size_t size)
     }
     if (tail)
     {
-        tail->s.next = new_block;
+        tail->next = new_block;
     }
     tail = new_block;
     pthread_mutex_unlock(&global_lock);
     // return pointer to block, not header.
-    return (void *)(new_block + 1);
+    return (void *)(++new_block);
 }
 
 void *mycalloc(size_t nitems, size_t size)
