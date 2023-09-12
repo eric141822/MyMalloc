@@ -11,4 +11,7 @@ void *mymalloc(size_t size);
 
 void *mycalloc(size_t nitems, size_t size);
 
+void *myrealloc(void *block, size_t size);
+
 #endif /* MYMALLOC.H */
+

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE // for MAP_ANONYMOUS or other macros if needed.
 #include <unistd.h>
 #include <pthread.h>
 #include <stdio.h>
@@ -105,4 +106,29 @@ void *mycalloc(size_t nitems, size_t size)
         return NULL;
     memset(block, 0, total_size);
     return block;
+}
+
+void *myrealloc(void *block, size_t size)
+{
+    if (!block || !size)
+        return mymalloc(size);
+
+    block_t *header = (block_t *)block - 1;
+
+    if (header->size >= size)
+    {
+        return block;
+    }
+
+    
+
+    void *new_block = mymalloc(size);
+
+    if (new_block)
+    {
+        memcpy(new_block, block, size);
+        myfree(block);
+        return new_block;
+    }
+    return NULL; // if mymalloc failed.
 }
