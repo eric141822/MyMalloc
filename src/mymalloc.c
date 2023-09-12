@@ -111,7 +111,7 @@ void *mycalloc(size_t nitems, size_t size)
 void *myrealloc(void *block, size_t size)
 {
     if (!block || !size)
-        return mymalloc(size);
+        return NULL;
 
     block_t *header = (block_t *)block - 1;
 
@@ -119,8 +119,6 @@ void *myrealloc(void *block, size_t size)
     {
         return block;
     }
-
-    
 
     void *new_block = mymalloc(size);
 
