@@ -21,7 +21,7 @@ int main(int argc, char **argv)
 {
     if (argc < 2)
     {
-        printf("Usage: %s <number of integers>\n", argv[0]);
+        printf("Usage: %s <number of integers in array>\n", argv[0]);
         return 1;
     }
     int n = atoi(argv[1]);

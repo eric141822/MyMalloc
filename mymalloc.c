@@ -7,11 +7,15 @@
 
 #include "mymalloc.h"
 
-struct block
+// force headers to align to 16 bytes.
+#define ALIGN 16
+union block
 {
-    struct block *next;
+    union block *next;
     size_t size;
     int is_free;
+
+    char stub[ALIGN];
 };
 
 block_t *head = NULL, *tail = NULL;
@@ -38,14 +42,39 @@ void myfree(void *block)
         return;
 
     pthread_mutex_lock(&global_lock);
-    block_t *header = (block_t *)block - 1;
-    if (tail == header)
-    {
-        size_t free_size = header->size - sizeof(block_t);
-        munmap(header, free_size);
-        pthread_mutex_unlock(&global_lock);
-        return;
+
+    block_t *header, *tmp;
+    void *prog_break;
+
+    header = (block_t *) block - 1;
+
+    // sbrk(0) returns current program break.
+    prog_break = sbrk(0);
+
+    // if this is the last block, i.e. tail
+    if ((char *) block + header->size == prog_break) {
+        if (head == tail) {
+            // empty linked list
+            head = tail = NULL;
+        } else {
+            // update second to last block to be tail
+            tmp = head;
+
+            while (tmp != NULL) {
+                if (tmp->next == tail) {
+                    tmp->next = NULL;
+                    tail = tmp;
+                }
+                tmp = tmp->next;
+            }
+
+            // deallocate the memory
+            sbrk(0 - header->size - sizeof(block_t));
+            pthread_mutex_unlock(&global_lock);
+            return;
+        }
     }
+    // otherwise, simply mark block as free.
     header->is_free = 1;
     pthread_mutex_unlock(&global_lock);
     return;
@@ -68,32 +97,41 @@ void *mymalloc(size_t size)
         return (void *)(++header); // point to allocated memory (hide header).
     }
 
+    // allocate new heap memory.
     size_t total_size = sizeof(block_t) + size; // header plus block, need to allocate memory for both.
 
     block_t *new_block;
-    if ((new_block = mmap(NULL, total_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0)) == MAP_FAILED)
-    {
-        fprintf(stderr, "mmap failed\n");
+    new_block = sbrk(total_size);
+    if (new_block == (void *)-1) {
+        // sbrk error
         pthread_mutex_unlock(&global_lock);
-        return NULL;
+		return NULL;
     }
 
-    new_block->size = size;
-    new_block->is_free = 0;
-    new_block->next = NULL;
+    header = new_block;
 
+    header->size = size;
+    header->is_free = 0;
+    header->next = NULL;
+
+    // very fist block.
     if (!head)
     {
-        head = new_block;
+        head = header;
     }
+
+    // if tail, point tail (aka prev last block)'s next to new tail
     if (tail)
     {
-        tail->next = new_block;
+        tail->next = header;
     }
-    tail = new_block;
+
+    // update new tail.
+    tail = header;
     pthread_mutex_unlock(&global_lock);
+    
     // return pointer to block, not header.
-    return (void *)(++new_block);
+    return (void *)(++header);
 }
 
 void *mycalloc(size_t nitems, size_t size)
