@@ -1,7 +1,7 @@
 #ifndef MYMALLOC_H
 #define MYMALLOC_H
 
-typedef struct block block_t;
+typedef union block block_t;
 
 block_t *get_free_block(size_t size);
 
