@@ -11,10 +11,11 @@
 #define ALIGN 16
 union block
 {
-    union block *next;
-    size_t size;
-    int is_free;
-
+       struct data {
+        union block *next;
+        size_t size;
+        int is_free;
+    } data;
     char stub[ALIGN];
 };
 
@@ -27,11 +28,11 @@ block_t *get_free_block(size_t size)
     block_t *curr = head;
     while (curr)
     {
-        if (curr->is_free && curr->size >= size)
+        if (curr->data.is_free && curr->data.size >= size)
         {
             return curr;
         }
-        curr = curr->next;
+        curr = curr->data.next;
     }
     return NULL;
 }
@@ -52,7 +53,7 @@ void myfree(void *block)
     prog_break = sbrk(0);
 
     // if this is the last block, i.e. tail
-    if ((char *) block + header->size == prog_break) {
+    if ((char *) block + header->data.size == prog_break) {
         if (head == tail) {
             // empty linked list
             head = tail = NULL;
@@ -61,21 +62,21 @@ void myfree(void *block)
             tmp = head;
 
             while (tmp != NULL) {
-                if (tmp->next == tail) {
-                    tmp->next = NULL;
+                if (tmp->data.next == tail) {
+                    tmp->data.next = NULL;
                     tail = tmp;
                 }
-                tmp = tmp->next;
+                tmp = tmp->data.next;
             }
 
             // deallocate the memory
-            sbrk(0 - header->size - sizeof(block_t));
+            sbrk(0 - header->data.size - sizeof(block_t));
             pthread_mutex_unlock(&global_lock);
             return;
         }
     }
     // otherwise, simply mark block as free.
-    header->is_free = 1;
+    header->data.is_free = 1;
     pthread_mutex_unlock(&global_lock);
     return;
 }
@@ -92,7 +93,7 @@ void *mymalloc(size_t size)
     // if free block found.
     if (header)
     {
-        header->is_free = 0;
+        header->data.is_free = 0;
         pthread_mutex_unlock(&global_lock);
         return (void *)(++header); // point to allocated memory (hide header).
     }
@@ -110,9 +111,9 @@ void *mymalloc(size_t size)
 
     header = new_block;
 
-    header->size = size;
-    header->is_free = 0;
-    header->next = NULL;
+    header->data.size = size;
+    header->data.is_free = 0;
+    header->data.next = NULL;
 
     // very fist block.
     if (!head)
@@ -123,7 +124,7 @@ void *mymalloc(size_t size)
     // if tail, point tail (aka prev last block)'s next to new tail
     if (tail)
     {
-        tail->next = header;
+        tail->data.next = header;
     }
 
     // update new tail.
@@ -153,7 +154,7 @@ void *myrealloc(void *block, size_t size)
 
     block_t *header = (block_t *)block - 1;
 
-    if (header->size >= size)
+    if (header->data.size >= size)
     {
         return block;
     }

@@ -12,7 +12,6 @@ In general, `mmap()` is safer than `sbrk()` (brk/sbrk are not thread-safe). Norm
 
 ## Thread safety
 
-While this allocator attempts to be thread-safe with a mutex, it is not guaranteed to be so. This is due to 
-to the fact that the `sbrk()` system call itself is not thread-safe. So a thread can call `sbrk()` and change the heap size while another thread is in the middle of a `mymalloc()` call. This can lead to memory corruption.
+While this allocator attempts to be thread-safe with a mutex, it is not guaranteed to be so. This is due to the fact that the `sbrk()` system call itself is not thread-safe. So a thread can call `sbrk()` and change the heap size while another thread is in the middle of a `mymalloc()` call. This can lead to memory corruption.
 
 This allocator is written for fun only and is far from "correct" and "perfect"!
