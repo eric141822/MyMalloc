@@ -11,7 +11,7 @@
 #define ALIGN 16
 union block
 {
-       struct data {
+    struct data {
         union block *next;
         size_t size;
         int is_free;
@@ -163,7 +163,7 @@ void *myrealloc(void *block, size_t size)
 
     if (new_block)
     {
-        memcpy(new_block, block, size);
+        memcpy(new_block, block, header->data.size);
         myfree(block);
         return new_block;
     }
